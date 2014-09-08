@@ -1,7 +1,7 @@
 python-topic-model
 ==================
 
-Implementation of various topic models
+Implementation of various topic models written in Python
 
 Current implementations
 -----------------------
@@ -14,4 +14,5 @@ Current implementations
 * Supervised topic model
   * Variational EM
   * Stochastic (Gibbs) EM
+* Hierarchical Dirichlet scaling process
 
