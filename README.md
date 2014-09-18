@@ -7,12 +7,16 @@ Current implementations
 -----------------------
 
 * Latent Dirichlet allocation
-  * Gibbs sampling
+  * Collapsed Gibbs sampling
   * Variational inference
 * Correlated topic Model
+  * Variational inference
 * Discrete infinite logistic normal (DILN)
+  * Variational inference
 * Supervised topic model
-  * Variational EM
+  * Variational inference
   * Stochastic (Gibbs) EM
+* Hierarchical Dirichlet process
+  * Collapsed Gibbs sampling
 * Hierarchical Dirichlet scaling process
 
