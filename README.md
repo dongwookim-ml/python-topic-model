@@ -11,6 +11,7 @@ Current implementations
   * Variational inference
 * Correlated topic Model
   * Variational inference
+* Author-Topic model 
 * Discrete infinite logistic normal (DILN)
   * Variational inference
 * Supervised topic model
