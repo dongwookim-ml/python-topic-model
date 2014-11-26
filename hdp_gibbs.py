@@ -3,6 +3,7 @@ from collections import Counter
 from scipy.special import gammaln
 from sample_utils import sampling_from_dict
 
+# normalize the log valued list
 def log_normalize(val_list):
     maxval = max(val_list)
     new_val = [val-maxval for val in val_list]
@@ -17,6 +18,8 @@ class WordTopicMatrix:
         self.W = voca_size
 
     def increase(self, wordNo,topicNo,incVal = 1):
+        """ increase a number of assigned word by incVal
+        """
         if not self.topicSum.has_key(topicNo):
             self.wordTopic[topicNo] = np.zeros(self.W)
             self.topicSum[topicNo] = 0
@@ -32,27 +35,35 @@ class WordTopicMatrix:
             del self.wordTopic[topicNo]
 
     def get_topics(self):
+        """ return a list of allocated topics 
+        """
         return self.topicSum.keys()
 
     def get_new_topic(self):
+        """ return a candidate topic number for a new topic
+        """
         new_topic = 0
         while True:
             if not self.topicSum.has_key(new_topic):
                 return new_topic
             new_topic +=1
 
-    def get_conditional(self, wordNo, topicNo, beta):
+    def get_conditional(self, wordNo, topicNo, eta):
+        """ compute a marginalized probability (predictive distribution) of a word given a topic 
+        """
         if not self.topicSum.has_key(topicNo):
             return 1.0/self.W
-        return (self.wordTopic[topicNo][wordNo]+beta)/(self.topicSum[topicNo] + self.W*beta)
+        return (self.wordTopic[topicNo][wordNo]+eta)/(self.topicSum[topicNo] + self.W*eta)
 
-    def get_multiword_log_conditional(self, word_list, topicNo, beta):
+    def get_multiword_log_conditional(self, word_list, topicNo, eta):
+        """ compute a marginalized probability of a set of words given a topic
+        """
         counter = Counter(word_list)
 
-        logval = gammaln(self.topicSum[topicNo] + beta*self.W) - gammaln(self.topicSum[topicNo] + len(word_list) + beta*self.W)
+        logval = gammaln(self.topicSum[topicNo] + eta*self.W) - gammaln(self.topicSum[topicNo] + len(word_list) + eta*self.W)
 
         for wordNo, value in counter.iteritems():
-            logval += gammaln(beta + self.wordTopic[topicNo][wordNo] + value) - gammaln(beta + self.wordTopic[topicNo][wordNo])
+            logval += gammaln(eta + self.wordTopic[topicNo][wordNo] + value) - gammaln(eta + self.wordTopic[topicNo][wordNo])
 
         return logval
 
@@ -71,17 +82,25 @@ class Document:
         self.word_list = list()
 
     def get_table_sum(self, tableNo):
+        """ return a number of assigned tokens to table tableNo
+        """
         if self.tableSum.has_key(tableNo):
             return self.tableSum[tableNo]
         return 0
 
     def get_doc_length(self):
+        """ return a length of a document (number of tokens)
+        """
         return len(self.word_list)
 
     def get_tables(self):
+        """ return a set of allocated tables
+        """
         return self.tableSum.keys()
 
     def get_new_table(self):
+        """ return a cadidate table number for a new table
+        """
         new_table = 0
         while True:
             if not self.tableSum.has_key(new_table):
@@ -90,6 +109,8 @@ class Document:
         return new_table
 
     def add_word_to_table(self, wordNo, tableNo):
+        """ assign a word to the desginated table
+        """
         if not self.tableSum.has_key(tableNo):
             self.tableWords[tableNo] = dict()
             self.tableSum[tableNo] = 0
@@ -102,6 +123,8 @@ class Document:
         self.tableWords[tableNo][wordNo] += 1
 
     def remove_word_from_table(self, wordNo, tableNo):
+        """ remove a word from a table
+        """
         self.tableWords[tableNo][wordNo] -= 1
         self.tableSum[tableNo] -= 1
 
@@ -115,11 +138,22 @@ class Document:
             del self.tableWords[tableNo]
 
 class HDP:
+    """ Hierarchical Dirichlet process (HDP) with collapsed gibbs sampling algorithm for the posterior inference.
+    """
 
-    def __init__(self, docs, voca_size, alpha = 1., alpha_H=1., beta = 0.1):
-        self.alpha = alpha
-        self.alpha_H = alpha_H
+    def __init__(self, docs, voca_size, beta = 1., alpha=1., eta = 0.1):
+        """ follows the notation of Teh et al. (2006)
+
+        Keyword arguments:
+        docs = list of list of tokens [[][]]
+        voca_size = size of vocabulary
+        beta = second level concentration parameter (default 1.)
+        alpha = first level concentration parameter (default 1.)
+        eta = prior for word-topic (Dir) distribution (default .1)
+        """
         self.beta = beta
+        self.alpha = alpha
+        self.eta = eta
 
         self.doc_list = list()
         self.word_topic = WordTopicMatrix(voca_size)
@@ -134,12 +168,20 @@ class HDP:
                 document.word_list.append(word)
             self.doc_list.append(document)
 
-    def gibbs_sampling(self, max_iter):
+    def gibbs_sampling(self, max_iter=100):
+        """ posterior sampling for HDP
+
+        Keyword arguments:
+        max_iter -- a maximum number of iteration (default 100)
+        """
+
         for iteration in xrange(max_iter):
             self.sampling_tables(iteration)
             self.sampling_dishes(iteration)
 
     def sampling_dishes(self, iteration):
+        """ sample a topic of each table
+        """
         # need to check this function
         
         for doc in self.doc_list:
@@ -149,7 +191,7 @@ class HDP:
                 tableWords = doc.tableWords[table]
                 old_topic = doc.tableTopic[table]
 
-                #remove current table
+                # remove current topic of table
                 self.table_assigned_topics[old_topic] -= 1
                 if self.table_assigned_topics[old_topic] == 0:
                     del self.table_assigned_topics[old_topic]
@@ -158,17 +200,17 @@ class HDP:
 
                 topic_prob = dict()
                 for topicNo in self.table_assigned_topics.keys():
-                    topic_prob[topicNo] = np.log(self.table_assigned_topics[topicNo]) + self.word_topic.get_multiword_log_conditional(tableWords, topicNo, self.beta)
+                    topic_prob[topicNo] = np.log(self.table_assigned_topics[topicNo]) + self.word_topic.get_multiword_log_conditional(tableWords, topicNo, self.eta)
                     
                 new_topic_no = self.get_new_topic()
 
-                topic_prob[new_topic_no] = np.log(self.alpha_H) + self.word_topic.get_multiword_log_conditional(tableWords, new_topic_no, self.beta)
+                topic_prob[new_topic_no] = np.log(self.alpha) + self.word_topic.get_multiword_log_conditional(tableWords, new_topic_no, self.eta)
 
                 topic_prob = log_normalize(topic_prob)
                 new_topic = sampling_from_dict(topic_prob)
 
-                #add current table
                 doc.tableTopic[table] = new_topic
+                # if a new topic is chosen
                 if new_topic == new_topic_no:
                     self.table_assigned_topics[new_topic] = 0
                 self.table_assigned_topics[new_topic] += 1
@@ -176,14 +218,18 @@ class HDP:
                     self.word_topic.increase(wordNo, new_topic, counts)
                 
     def sampling_tables(self, iteration):
+        """ iterate a corpus and sample a table of each word token
 
+        Keyword arguments:
+        iteration -- current iteration count
+        """
         for doc in self.doc_list:
             doc_length = doc.get_doc_length() - 1
 
             for word in doc.word_list:
                 wordNo = word.wordNo
 
-                #remove current word
+                # remove current word from assigned table
                 if iteration != 0:
                     old_table = word.tableNo
                     old_topic = doc.tableTopic[old_table]
@@ -196,37 +242,40 @@ class HDP:
                             del self.table_assigned_topics[old_topic]
                     self.word_topic.decrease(wordNo, old_topic)
 
-                #compute conditional for each table, topic
+                # compute conditional for each table, topic
                 tables = doc.get_tables()
                 topic_prob = dict()
                 for topicNo in self.word_topic.get_topics():
-                    topic_prob[topicNo] = self.word_topic.get_conditional(wordNo,topicNo,self.beta)
+                    topic_prob[topicNo] = self.word_topic.get_conditional(wordNo,topicNo,self.eta)
 
                 new_topic_no = self.word_topic.get_new_topic()
-                topic_prob[new_topic_no] = self.word_topic.get_conditional(wordNo,new_topic_no, self.beta)
+                topic_prob[new_topic_no] = self.word_topic.get_conditional(wordNo,new_topic_no, self.eta)
 
                 table_prob = dict()
                 for tableNo in tables:
-                    table_prob[tableNo] = topic_prob[doc.tableTopic[tableNo]] * (doc.tableSum[tableNo])/(doc_length + self.alpha)
+                    table_prob[tableNo] = topic_prob[doc.tableTopic[tableNo]] * (doc.tableSum[tableNo])/(doc_length + self.beta)
 
                 new_table_no = doc.get_new_table()
                 new_table_prob = 0
                 new_table_dict = dict()
                 for topicNo in topic_prob.keys():
                     if self.table_assigned_topics.has_key(topicNo):
-                        prob = (self.table_assigned_topics[topicNo])/(self.total_table + self.alpha_H) * topic_prob[topicNo]
+                        prob = (self.table_assigned_topics[topicNo])/(self.total_table + self.alpha) * topic_prob[topicNo]
                     else:
-                        prob = self.alpha_H/(self.total_table + self.alpha_H) * topic_prob[topicNo]
+                        prob = self.alpha/(self.total_table + self.alpha) * topic_prob[topicNo]
                     new_table_prob += prob
                     new_table_dict[topicNo] = prob
 
-                table_prob[new_table_no] = new_table_prob * self.alpha / (doc_length + self.alpha)
+                table_prob[new_table_no] = new_table_prob * self.beta / (doc_length + self.beta)
 
                 new_table = sampling_from_dict(table_prob)
 
+                # if a new table is chosen
                 if new_table == new_table_no:
                     new_topic_of_new_table = sampling_from_dict(new_table_dict)
                     self.total_table += 1
+
+                    # if a new topic is chosen for the new table
                     if new_topic_of_new_table == new_topic_no: 
                         self.table_assigned_topics[new_topic_of_new_table] = 0
                     self.table_assigned_topics[new_topic_of_new_table] += 1
