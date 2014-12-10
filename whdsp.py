@@ -3,6 +3,7 @@ import time
 import utils
 from scipy.special import gammaln, psi
 
+#epsilon
 eps = 1e-100
 
 class hdsp:
@@ -11,15 +12,15 @@ class hdsp:
 
     """
 
-    def __init__(self, K, N, J, dir_prior=0.5):
-        self.K = K          # number of topics
-        self.N = N          # vocabulary size
-        self.J = J          # num labels
+    def __init__(self, num_topics, num_words, num_labels, dir_prior=0.5):
+        self.K = num_topics          # number of topics
+        self.N = num_words          # vocabulary size
+        self.J = num_labels          # num labels
         self.V = np.zeros(self.K)
 
         #for even p
         self.V[0] = 1./self.K
-        for k in xrange(1,K-1):
+        for k in xrange(1,self.K-1):
             self.V[k] = (1./self.K)/np.prod(1.-self.V[:k])
         self.V[self.K-1] = 1.
 
@@ -39,16 +40,16 @@ class hdsp:
         self.is_compute_lb = True
         self.ll_diff_frac = 1e-3
 
-    def runVariationalEM(self, max_iter, corpus, directory, prediction=True, logger=None):
+    def run_variational_EM(self, max_iter, corpus, directory=None, logger=None):
 
         if self.is_plot:
             import matplotlib.pyplot as plt
             plt.ion()
-        lbs = list()
+        if directory == None:
+            directory = 'result'
 
+        lbs = list()
         curr = time.clock()
-        
-        best_micro = 0
 
         for iter in xrange(max_iter):
             lb = 0
@@ -58,18 +59,7 @@ class hdsp:
             lb += self.update_V(corpus)
             self.update_alpha()
             self.update_beta(corpus)
-            if corpus.heldout_ids != None and prediction:
-                acc, acc_pn, conf  = self.heldout_prediction(corpus)
-                micro, macro, f1, prc, rcl = utils.get_f1_from_confusion(conf)
-
-                mmsum = micro+macro
-
-                print '%d iter, %d topics, %.2f time, %.2f lower_bound %.3f accuracy %.3f accuracy_pn' % (iter, self.K, time.clock()-curr, lb, micro, macro)
-                if mmsum > best_micro:
-                    self.save_result(directory+'_best', corpus, prediction)
-                    best_micro = mmsum
-
-            elif corpus.heldout_ids != None and not prediction:
+            if corpus.heldout_ids != None:
                 perp = self.heldout_perplexity(corpus)
                 print '%d iter, %d topics, %.2f time, %.2f lower_bound %.3f perplexity' % (iter, self.K, time.clock()-curr, lb, perp)
                 if logger:
@@ -88,6 +78,8 @@ class hdsp:
             if iter > 30:
                 if (abs(lbs[-1] - lbs[-2])/abs(lbs[-2])) < self.ll_diff_frac :
                     break
+
+        self.save_result(directory, corpus)
 
         return lbs
 
@@ -386,7 +378,7 @@ class hdsp:
         return step
 
     def write_top_words(self, corpus, filepath):
-        with open(filepath, 'w') as f:
+        with open(filepath + '/final_top_words.csv', 'w') as f:
             posterior_topic_count = np.sum(self.gamma, 0)
             topic_rank = posterior_topic_count.argsort()[::-1]
 
@@ -401,7 +393,7 @@ class hdsp:
         
         bp = self.beta * self.p
 
-        with open(filepath, 'w') as f, open(filepath+'all.csv', 'w') as f2:
+        with open(filepath + '/final_label_top_words.csv', 'w') as f, open(filepath + '/final_label_top_words_all.csv', 'w') as f2:
             mean = corpus.w
             for li in xrange(corpus.J):
                 for ki in xrange(corpus.K):
@@ -424,7 +416,7 @@ class hdsp:
                     f.write(',' + word)
                 f.write('\n')
 
-    def save_result(self, folder, corpus, prediction):
+    def save_result(self, folder, corpus):
         import os, cPickle
         if not os.path.exists(folder):
             os.mkdir(folder)
@@ -433,18 +425,9 @@ class hdsp:
         np.savetxt(folder+'/gamma.csv', self.gamma, delimiter=',')
         np.savetxt(folder+'/A.csv',corpus.A, delimiter=',')
         np.savetxt(folder+'/B.csv',corpus.A, delimiter=',')
-        self.write_top_words(corpus, folder + '/final_top_words.csv')
-        self.write_label_top_words(corpus, folder + '/final_label_top_words.csv')
+        self.write_top_words(corpus, folder)
+        self.write_label_top_words(corpus, folder)
         #cPickle.dump([self,corpus], open(folder+'/model_corpus.pkl','w'))
-        if prediction:
-            acc, pn_acc, conf = self.heldout_prediction(corpus)
-            micro, macro, f1, prc, rcl = utils.get_f1_from_confusion(conf)        
-            with open(folder+'/acc.txt', 'w') as f:
-                f.write('%f\n'%acc)
-                f.write('%f\n'%pn_acc)
-                f.write('%f\n'%micro)
-                f.write('%f\n'%macro)
-            np.savetxt(folder+'/conf.csv', conf, delimiter=',')
 
     def heldout_perplexity(self, corpus):
         num_hdoc = len(corpus.heldout_ids)
@@ -473,14 +456,26 @@ class hdsp:
         return np.exp(perp/cnt_sum)
 
 class hdsp_corpus:
-    def __init__(self, vocab, word_ids, word_cnt, K, labels, label_names = None, heldout_ids = None, heldout_cnt = None, heldout_responses = None):
-        # type of word_ids[0] and word_cnt[0] is np.array
-        if type(vocab) == type(list()):
+    def __init__(self, vocab, word_ids, word_cnt, num_topics, labels, label_names = None, heldout_ids = None, heldout_cnt = None, heldout_responses = None):
+
+        if type(vocab) == list:
             self.vocab = np.array(vocab)
+        if type(word_ids[0]) != np.ndarray:
+            tmp_ids = list()
+            tmp_cnt = list()
+            for ids in word_ids:
+                tmp_ids.append(np.array(ids))
+            for cnt in word_cnt:
+                tmp_cnt.append(np.array(cnt))
+            word_ids = tmp_ids
+            word_cnt = tmp_cnt
+        if label_names == None:
+            label_names = [str(i) for i in xrange(labels.shape[1])]
+
         self.word_ids = word_ids
         self.word_cnt = word_cnt
         self.R = labels        # M x J matrix
-        self.K = K      #num topics
+        self.K = num_topics      #num topics
         self.N = len(vocab)             #num voca
         self.M = len(word_ids)          #num documents
         self.J = labels.shape[1]
@@ -497,3 +492,27 @@ class hdsp_corpus:
         self.Nm = np.zeros(self.M)
         for i in xrange(self.M):
             self.Nm[i] = np.sum(word_cnt[i])
+
+
+def test():
+    #corpus parameters
+    num_topics = 5
+    num_words = 6
+    num_labels = 2
+    num_docs = 3
+    voca = [str(i) for i in xrange(num_words)]
+    corpus_ids = [[0,1,2],[1,2,3],[3,4,5]]  # word ids for each document
+    corpus_cnt = [[2,3,1],[1,3,2],[3,2,1]]  # word count corresponding to word ids for each document
+    labels = np.random.random([num_docs,num_labels])
+
+    #model parameters
+    max_iter = 10
+    output_dir = 'result'
+
+    corpus = hdsp_corpus(voca, corpus_ids, corpus_cnt, num_topics, labels)
+    model = hdsp(num_topics, num_words, num_labels)
+    model.run_variational_EM(max_iter, corpus, output_dir)  # run variational inference
+
+if __name__ == '__main__':
+    #test with toy problem
+    test()
