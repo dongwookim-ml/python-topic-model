@@ -61,12 +61,13 @@ class hdsp:
             self.update_beta(corpus)
             if corpus.heldout_ids != None:
                 perp = self.heldout_perplexity(corpus)
-                print '%d iter, %d topics, %.2f time, %.2f lower_bound %.3f perplexity' % (iter, self.K, time.clock()-curr, lb, perp)
+                if self.is_verbose:
+                    print '%d iter, %d topics, %.2f time, %.2f lower_bound %.3f perplexity' % (iter, self.K, time.clock()-curr, lb, perp)
                 if logger:
                     logger.write('%d,%d,%f,%f,%f,%f\n'%(iter, self.K, self.dir_prior, time.clock()-curr, lb, perp))
                 
-            elif corpus.heldout_ids == None:
-                print '%d iter, %d topics, %.2f time, %.2f lower_bound' % (iter, self.K, time.clock()-curr, lb)    
+            elif corpus.heldout_ids == None and self.is_verbose:
+                print '%d iter, %d topics, %.2f time, %.2f lower_bound' % (iter, self.K, time.clock()-curr, lb)
                 
             if iter > 0:
                 lbs.append(lb)
@@ -494,6 +495,42 @@ class hdsp_corpus:
             self.Nm[i] = np.sum(word_cnt[i])
 
 
+def plot_expected_topics(model, corpus, labels, save_path=None, num_words = 10, num_topics = 20):
+    """plot expected topics
+    """
+    import matplotlib.pyplot as plt
+
+    if model.K < num_topics:
+        num_topics = model.K
+    if corpus.N < num_words:
+        num_words = corpus.N
+
+    legend_size = 15
+    word_size = 10
+    width = 20
+    height = 3
+
+    wr = np.exp(np.dot(labels, corpus.w))
+
+    Z = model.p / (wr)
+    Z /= np.sum(Z)  #expected topic proportion given 'labels'
+
+    rank = model.p.argsort()[::-1]
+
+    fig = plt.gcf()
+    fig.set_size_inches(width,height)
+    ax = plt.gca()
+
+    l_names = ['%s:%.2f'%(corpus.label_names[i],labels[i]) for i in xrange(0,corpus.J) if labels[i] != 0]
+    plt.bar(range(0,num_topics), Z[rank[:num_topics]], label='label={%s}'%(', '.join(l_names)), alpha=0.5)
+    plt.legend(prop={'size':legend_size})
+    ax.set_xticks(np.arange(num_topics)+0.4)
+    ax.set_xticklabels(['\n'.join(corpus.vocab[model.gamma[:,i].argsort()[::-1][:num_words]]) for i in rank[:num_topics]], size=word_size)
+    plt.plot()
+    if save_path:
+        plt.savefig(save_path, format='PDF', bbox_inches='tight', dpi=720)
+
+
 def test():
     #corpus parameters
     num_topics = 5
@@ -512,6 +549,7 @@ def test():
     corpus = hdsp_corpus(voca, corpus_ids, corpus_cnt, num_topics, labels)
     model = hdsp(num_topics, num_words, num_labels)
     model.run_variational_EM(max_iter, corpus, output_dir)  # run variational inference
+    plot_expected_topics(model, corpus, labels[0], save_path='result/expected_topics.pdf')
 
 if __name__ == '__main__':
     #test with toy problem
