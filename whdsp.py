@@ -45,8 +45,6 @@ class hdsp:
         if self.is_plot:
             import matplotlib.pyplot as plt
             plt.ion()
-        if directory == None:
-            directory = 'result'
 
         lbs = list()
         curr = time.clock()
@@ -80,7 +78,8 @@ class hdsp:
                 if (abs(lbs[-1] - lbs[-2])/abs(lbs[-2])) < self.ll_diff_frac :
                     break
 
-        self.save_result(directory, corpus)
+        if directory:
+            self.save_result(directory, corpus)
 
         return lbs
 
