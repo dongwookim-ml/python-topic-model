@@ -39,15 +39,15 @@ class vbLDA:
         self._Elogbeta = dirichlet_expectation(self._lambda)
         self._expElogbeta = np.exp(self._Elogbeta)
         self.gamma_iter = 5
-        
+        self.gamma = 1*np.random.gamma(100.,1./100, (self._D, self._K))
+
     def do_e_step(self):
         """
         compute approximate topic distribution of each document and each word
         """
-
+        #self.gamma = 1*np.random.gamma(100.,1./100, (self._D, self._K))
         #random initialize gamma
-        gamma = 1*np.random.gamma(100.,1./100, (self._D, self._K))
-        Elogtheta = dirichlet_expectation(gamma)
+        Elogtheta = dirichlet_expectation(self.gamma)
         expElogtheta = np.exp(Elogtheta)
 
         #sufficient statistics to update lambda
@@ -56,7 +56,7 @@ class vbLDA:
         for d in range(0, self._D):
             ids = self._wordids[d]
             cts = np.array(self._wordcts[d])
-            gammad = gamma[d,:]
+            gammad = self.gamma[d,:]
 
             Elogthetad = Elogtheta[d,:]
             expElogthetad = expElogtheta[d,:]
@@ -77,7 +77,7 @@ class vbLDA:
                 if(meanchange < eps):
                     break
 
-            gamma[d,:] = gammad
+            self.gamma[d,:] = gammad
             sstats[:, ids] += np.outer(expElogthetad.T, cts/phinorm)
 
         # This step finishes computing the sufficient statistics for the
@@ -86,7 +86,7 @@ class vbLDA:
         # = \sum_d n_{dw} * exp{Elogtheta_{dk} + Elogbeta_{kw}} / phinorm_{dw}.
         sstats = sstats * self._expElogbeta
 
-        return (gamma,sstats)
+        return (self.gamma,sstats)
 
 
     def do_m_step(self, isComputeBound=True):
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     max_iter = 10
 
     model = vbLDA(vocab, 2, wordids, wordcts)
-    for i in max_iter:
-        model.do_e_step()
-        model.do_m_step()
+    for i in xrange(max_iter):
+        (gamma,bound) = model.do_m_step()
+        print bound
 
