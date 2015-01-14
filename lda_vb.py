@@ -138,13 +138,14 @@ class vbLDA:
 
 if __name__ == '__main__':
     #test
-    wordids = np.array([[0,1,2,3], [2,3,4]])
-    wordcts = np.array([[1,2,1,3], [1,4,2]])
-    vocab = range(5)
-    max_iter = 10
+    import nltk_corpus
+    voca, wordids, wordcnt = nltk_corpus.get_reuters_cnt_ids(num_doc=100, max_voca=1000)
 
-    model = vbLDA(vocab, 2, wordids, wordcts)
+    max_iter = 50
+    num_topic = 5
+
+    model = vbLDA(voca, num_topic, wordids, wordcnt)
     for i in xrange(max_iter):
         (gamma,bound) = model.do_m_step()
-        print bound
+        print i,bound
 
