@@ -55,3 +55,5 @@ docs/_build/
 # result folder
 result/
 
+# test folder
+test/
