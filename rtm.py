@@ -27,7 +27,7 @@ class rtm:
         for di in xrange(self.D):
             unique_word = len(doc_ids[di])
             cnt = doc_cnt[di]
-            self.phi.append(np.random.dirichlet([10]*self.K, unique_word).T) # K x W
+            self.phi.append(np.random.dirichlet([10]*self.K, unique_word).T)    # list of KxW
             self.pi[di,:] = np.sum(cnt*self.phi[di],1)/np.sum(cnt*self.phi[di])
 
         self.doc_ids = doc_ids
@@ -39,6 +39,32 @@ class rtm:
         for iter in xrange(max_iter):
             self.variation_update()
             self.parameter_estimation()
+            print self.compute_elbo()
+
+    def compute_elbo(self):
+        """ compute evidence lower bound for trained model
+        """
+        elbo = 0
+
+        e_log_theta = psi(self.gamma) - psi(np.sum(self.gamma, 1))[:,np.newaxis] # D x K
+        log_beta = np.log(self.beta)
+
+        for di in xrange(self.D):
+            words = self.doc_ids[di]
+            cnt = self.doc_cnt[di]
+            
+            elbo += np.sum(cnt * (self.phi[di] * log_beta[:,words])) # E_q[log p(w_{d,n}|\beta,z_{d,n})]
+            elbo += np.sum((self.alpha - 1.)*e_log_theta[di,:]) # E_q[log p(\theta_d | alpha)]
+            elbo += np.sum(self.phi[di].T * e_log_theta[di,:])  # E_q[log p(z_{d,n}|\theta_d)]
+
+            elbo += -gammaln(np.sum(self.gamma[di,:])) + np.sum(gammaln(self.gamma[di,:])) \
+                - np.sum((self.gamma[di,:] - 1.)*(e_log_theta[di,:]))   # - E_q[log q(theta|gamma)]
+            elbo += - np.sum(cnt * self.phi[di] * np.log(self.phi[di])) # - E_q[log q(z|phi)]
+
+            for adi in self.doc_links[di]:
+                elbo += np.dot(self.eta, self.pi[di]*self.pi[adi]) # E_q[log p(y_{d1,d2}|z_{d1},z_{d2},\eta,\nu)]
+
+        return elbo
 
     def variation_update(self):
         #update phi, gamma
@@ -84,3 +110,18 @@ class rtm:
 
         self.nu = np.log(num_links-np.sum(pi_sum)) - np.log(self.rho*(self.K-1)/self.K + num_links - np.sum(pi_sum))
         self.eta = np.log(pi_sum) - np.log(pi_sum + self.rho * pi_alpha) - self.nu 
+
+
+def main():
+    rho = 1
+    num_topic = 2
+    num_voca = 6
+    num_doc = 2
+    doc_ids = [[0,1,4],[2,3,5]]
+    doc_cnt = [[2,2,3],[1,3,1]]
+    doc_links = [[1],[0]]   #bidirectional link
+    model = rtm(num_topic, num_doc, num_voca, doc_ids, doc_cnt, doc_links, rho)
+    model.posterior_inference(10)
+
+if __name__ == '__main__':
+    main()
