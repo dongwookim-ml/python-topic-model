@@ -106,6 +106,9 @@ class rtm:
                 pi_sum += self.pi[di,:]*self.pi[adi,:]
                 num_links += 1
 
+        num_links /= 2. # divide by 2 for bidirectional edge
+        pi_sum /= 2.
+
         pi_alpha = np.zeros(self.K) + self.alpha/(self.alpha*self.K)*self.alpha/(self.alpha*self.K)
 
         self.nu = np.log(num_links-np.sum(pi_sum)) - np.log(self.rho*(self.K-1)/self.K + num_links - np.sum(pi_sum))
