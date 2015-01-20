@@ -11,6 +11,8 @@ Current implementations
   * Variational inference
 * Correlated topic Model
   * Variational inference
+* Relational topic model (VI)
+  * Exponential link function
 * Author-Topic model 
 * HMM-LDA
 * Discrete infinite logistic normal (DILN)
