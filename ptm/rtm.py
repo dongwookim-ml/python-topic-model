@@ -126,11 +126,12 @@ class rtm:
             os.mkdir(output_directory)
 
         np.savetxt(output_directory+'/eta.txt', self.eta, delimiter='\t')
-        with open(output_directory+'/nu.txt', 'w') as f:
-            f.write('%f\n'%self.nu)
         np.savetxt(output_directory+'/beta.txt', self.beta, delimiter='\t')
         np.savetxt(output_directory+'/gamma.txt',self.gamma,delimiter='\t')
-        if vocab:
+        with open(output_directory+'/nu.txt', 'w') as f:
+            f.write('%f\n'%self.nu)
+
+        if vocab != None:
             utils.write_top_words(self.beta, vocab, output_directory+'/top_words.csv')
 
 def main():
