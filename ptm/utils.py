@@ -147,7 +147,7 @@ def convert_wrdcnt_wrdlist(corpus_ids, corpus_cnt):
 def write_top_words(topic_word_matrix, vocab, filepath, num_top_words = 20, delimiter=',', newline='\n'):
     with open(filepath, 'w') as f:
         for ti in xrange(topic_word_matrix.shape[0]):
-            top_words = vocab[topic_word_matrix[:,ti].argsort()[::-1][:num_top_words]]
+            top_words = vocab[topic_word_matrix[ti,:].argsort()[::-1][:num_top_words]]
             f.write( '%d' % (ti) )
             for word in top_words:
                 f.write(delimiter + word)
