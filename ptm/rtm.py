@@ -1,7 +1,11 @@
-import numpy as np 
+import numpy as np
+import utils
 from scipy.special import gammaln, psi
+from formatted_logger import formatted_logger
 
-eps = 1e-10
+eps = 1e-20
+
+log = formatted_logger('RTM', 'info')
 
 class rtm:
     """ implementation of relational topic model by Chang and Blei (2009)
@@ -13,7 +17,7 @@ class rtm:
         self.K = num_topic
         self.V = num_voca
 
-        self.alpha = 1.
+        self.alpha = .1
 
         self.gamma = np.random.gamma(100., 1./100, [self.D, self.K])
         self.beta = np.random.dirichlet([5]*self.V, self.K)
@@ -35,11 +39,13 @@ class rtm:
         self.doc_links = doc_links
         self.rho = rho  #regularization parameter
 
+        log.info('Initialize RTM: num_voca:%d, num_topic:%d, num_doc:%d' % (self.V,self.K,self.D))
+
     def posterior_inference(self, max_iter):
         for iter in xrange(max_iter):
             self.variation_update()
             self.parameter_estimation()
-            print self.compute_elbo()
+            log.info('%d iter: ELBO = %.3f' % (iter, self.compute_elbo()))
 
     def compute_elbo(self):
         """ compute evidence lower bound for trained model
@@ -47,7 +53,7 @@ class rtm:
         elbo = 0
 
         e_log_theta = psi(self.gamma) - psi(np.sum(self.gamma, 1))[:,np.newaxis] # D x K
-        log_beta = np.log(self.beta)
+        log_beta = np.log(self.beta+eps)
 
         for di in xrange(self.D):
             words = self.doc_ids[di]
@@ -62,7 +68,7 @@ class rtm:
             elbo += - np.sum(cnt * self.phi[di] * np.log(self.phi[di])) # - E_q[log q(z|phi)]
 
             for adi in self.doc_links[di]:
-                elbo += np.dot(self.eta, self.pi[di]*self.pi[adi]) # E_q[log p(y_{d1,d2}|z_{d1},z_{d2},\eta,\nu)]
+                elbo += np.dot(self.eta, self.pi[di]*self.pi[adi]) + self.nu # E_q[log p(y_{d1,d2}|z_{d1},z_{d2},\eta,\nu)]
 
         return elbo
 
@@ -77,7 +83,7 @@ class rtm:
             cnt = self.doc_cnt[di]
             doc_len = np.sum(cnt)
 
-            new_phi = np.log(self.beta[:,words]) + e_log_theta[di,:][:,np.newaxis]
+            new_phi = np.log(self.beta[:,words]+eps) + e_log_theta[di,:][:,np.newaxis]
 
             gradient = np.zeros(self.K)
             for adi in self.doc_links[di]:
@@ -114,6 +120,18 @@ class rtm:
         self.nu = np.log(num_links-np.sum(pi_sum)) - np.log(self.rho*(self.K-1)/self.K + num_links - np.sum(pi_sum))
         self.eta = np.log(pi_sum) - np.log(pi_sum + self.rho * pi_alpha) - self.nu 
 
+    def save_model(self, output_directory, vocab=None):
+        import os
+        if not os.path.exists(output_directory):
+            os.mkdir(output_directory)
+
+        np.savetxt(output_directory+'/eta.txt', self.eta, delimiter='\t')
+        with open(output_directory+'/nu.txt', 'w') as f:
+            f.write('%f\n'%self.nu)
+        np.savetxt(output_directory+'/beta.txt', self.beta, delimiter='\t')
+        np.savetxt(output_directory+'/gamma.txt',self.gamma,delimiter='\t')
+        if vocab:
+            utils.write_top_words(self.beta, vocab, output_directory+'/top_words.csv')
 
 def main():
     rho = 1

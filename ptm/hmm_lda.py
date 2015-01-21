@@ -1,6 +1,10 @@
 import numpy as np
 
 class HMM_LDA:
+    """ implementation of HMM-LDA proposed by Griffiths et al. (2004)
+     Original reference : Integrating topics and syntax, Griffiths, Thomas L and Steyvers, Mark and Blei, David M and Tenenbaum, Joshua B, NIPS 2004
+    """
+
     def __init__(self, num_class, num_topic, num_voca, docs):
         self.C = num_class
         self.K = num_topic

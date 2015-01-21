@@ -460,7 +460,7 @@ class hdsp_corpus:
 
         if type(vocab) == list:
             self.vocab = np.array(vocab)
-        else
+        else:
             self.vocab = vocab
 
         if type(word_ids[0]) != np.ndarray:
