@@ -424,7 +424,7 @@ class hdsp:
         np.savetxt(folder+'/final_V.csv', self.V, delimiter=',')
         np.savetxt(folder+'/gamma.csv', self.gamma, delimiter=',')
         np.savetxt(folder+'/A.csv',corpus.A, delimiter=',')
-        np.savetxt(folder+'/B.csv',corpus.A, delimiter=',')
+        np.savetxt(folder+'/B.csv',corpus.B, delimiter=',')
         self.write_top_words(corpus, folder)
         self.write_label_top_words(corpus, folder)
         #cPickle.dump([self,corpus], open(folder+'/model_corpus.pkl','w'))
