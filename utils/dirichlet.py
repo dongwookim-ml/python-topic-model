@@ -112,7 +112,7 @@ def test_collapsed_parameter_estimation():
     W = 200 # number of multinomial trials for each observation
 
     _alpha = np.random.gamma(1,1) * np.random.dirichlet([1.]*K) # ground truth alpha
-
+    
     obs = np.zeros([N,K])
     for i in xrange(N):
         theta = np.random.dirichlet(_alpha)
