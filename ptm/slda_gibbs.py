@@ -91,7 +91,7 @@ class sLDA:
 
             #estimate parameters
             z_bar = self.doc_topic_sum / self.doc_topic_sum.sum(1)[:,np.newaxis] # DxK
-            self.eta = solve(np.dot(z_bar.T,z_bar), np.dot(z_bar, responses) )
+            self.eta = solve(np.dot(z_bar.T,z_bar), np.dot(z_bar.T, responses) )
 
             #compute mean absolute error
             mae = np.abs(responses - np.dot(z_bar, self.eta)).sum()
