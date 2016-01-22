@@ -76,10 +76,11 @@ class sLDA:
                     self.doc_topic_sum[di,old_topic] -= 1
 
                     z_bar = np.zeros([self.K,self.K]) + self.doc_topic_sum[di,:] + np.identity(self.K)
-                    z_bar /= z_bar.sum(1)
+                    # this seems more straightforward than z_bar/z_bar.sum(1)
+                    z_bar /= self.doc_topic_sum[di,:].sum() + 1
 
                     #update
-                    prob = (self.WK[word, :])/(self.sumK[:]) * (self.doc_topic_sum[di,:]) * np.exp(np.negative((responses[di] - np.dot(z_bar.T,self.eta))**2)/2/self.sigma)
+                    prob = (self.WK[word, :])/(self.sumK[:]) * (self.doc_topic_sum[di,:]) * np.exp(np.negative((responses[di] - np.dot(z_bar,self.eta))**2)/2/self.sigma)
 
                     new_topic = sampling_from_dist(prob)
 
@@ -90,7 +91,7 @@ class sLDA:
 
             #estimate parameters
             z_bar = self.doc_topic_sum / self.doc_topic_sum.sum(1)[:,np.newaxis] # DxK
-            self.eta = solve(np.dot(z_bar.T,z_bar), np.dot(z_bar.T, responses) )
+            self.eta = solve(np.dot(z_bar.T,z_bar), np.dot(z_bar, responses) )
 
             #compute mean absolute error
             mae = np.abs(responses - np.dot(z_bar, self.eta)).sum()
