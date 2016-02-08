@@ -5,10 +5,34 @@ from scipy.special import gammaln, psi
 eps = 1e-100
 
 
-class diln:
-    """
-    The Discrete Infinite Logistic Normal Distribution (DILN), Paisley, John and Wang, Chong and Blei, David, 2011
+class Corpus:
+    def __init__(self, vocab, word_ids, word_cnt, n_topic):
+        self.vocab = np.array(vocab)
+        self.word_ids = word_ids
+        self.word_cnt = word_cnt
+        self.n_topic = n_topic  # num topics
+        self.n_voca = len(vocab)
+        self.n_doc = len(word_ids)
+        self.A = np.random.gamma(shape=1, scale=1, size=[self.n_doc, self.n_topic])
+        self.B = np.random.gamma(shape=1, scale=1, size=[self.n_doc, self.n_topic])
+        self.mu = np.zeros([self.n_doc, self.n_topic])
+        self.sigma = np.ones([self.n_doc, self.n_topic])
 
+        self.Nm = np.zeros(self.n_doc)
+        for i in xrange(self.n_doc):
+            self.Nm[i] = np.sum(word_cnt[i])
+
+class DILN:
+    """
+    The Discrete Infinite Logistic Normal Distribution (DILN),
+    Paisley, John and Wang, Chong and Blei, David, 2011
+
+    Attributes
+    ----------
+    n_topic: int
+        number of truncated topics for variational inference
+    n_voca: int
+        vocabulary size
     """
 
     def __init__(self, n_topic, n_voca):
@@ -18,7 +42,7 @@ class diln:
 
         # for even p
         self.V[0] = 1. / self.n_topic
-        for k in xrange(1, self.n_topic - 1):
+        for k in xrange(1, n_topic - 1):
             self.V[k] = (1. / self.n_topic) / np.prod(1. - self.V[:k])
         self.V[self.n_topic - 1] = 1.
 
@@ -36,13 +60,21 @@ class diln:
         self.gamma = np.random.gamma(shape=1, scale=1, size=[self.n_voca, self.n_topic]) + self.dir_prior
         self.c_a_max_step = 5
         self.is_compute_lb = True
-        self.is_plot = True
 
-    def runVariationalEM(self, max_iter, corpus):
+    def fit(self, corpus, max_iter=100):
+        """ Run variational EM to fit the model
 
-        if self.is_plot:
-            import matplotlib.pyplot as plt
-            plt.ion()
+        Parameters
+        ----------
+        max_iter: int
+            maximum number of iterations
+        corpus:
+
+        Returns
+        -------
+
+        """
+
         lbs = list()
 
         for iter in xrange(max_iter):
@@ -56,10 +88,6 @@ class diln:
             # self.update_beta(corpus)
             self.update_mean_Kernel(corpus)
             print('%d iter, %.2f time, %.2f lower_bound' % (iter, time.clock() - curr, lb))
-
-            if self.is_plot:
-                plt.plot(lbs)
-                plt.draw()
 
             if iter > 3:
                 lbs.append(lb)
@@ -285,9 +313,8 @@ class diln:
             step_check = step_check_vec[ite];
             vec_check = curr + step_check * grad;
             p = self.getP(vec_check)
-            f[ite] = -np.sum(beta * p * sumMu) - M * np.sum(gammaln(beta * p)) + np.sum((beta * p - 1) * sumlnZ) + (
-                                                                                                                   alpha - 1.) * np.sum(
-                np.log(1. - vec_check[:-1] + eps))
+            f[ite] = -np.sum(beta * p * sumMu) - M * np.sum(gammaln(beta * p)) + np.sum((beta * p - 1) * sumlnZ)\
+                     + (alpha - 1.) * np.sum(np.log(1. - vec_check[:-1] + eps))
 
         if len(f) != 0:
             b = f.argsort()[-1]
@@ -305,9 +332,8 @@ class diln:
                 tmp = np.zeros(vec_check.size)
                 tmp[1:] = vec_check[:-1]
                 p = vec_check * np.cumprod(1 - tmp)
-                fnew = -np.sum(beta * p * sumMu) - M * np.sum(gammaln(beta * p)) + np.sum((beta * p - 1) * sumlnZ) + (
-                                                                                                                     alpha - 1.) * np.sum(
-                    np.log(1. - vec_check[:-1] + eps))
+                fnew = -np.sum(beta * p * sumMu) - M * np.sum(gammaln(beta * p)) + np.sum((beta * p - 1) * sumlnZ) \
+                       + (alpha - 1.) * np.sum(np.log(1. - vec_check[:-1] + eps))
                 if fnew > fold:
                     fold = fnew
                 else:
@@ -385,8 +411,7 @@ class diln:
                 v_check[v_check > 200] = 200
                 fnew = - np.sum(mu_check * bp) - np.sum(AdivB * np.exp(-mu_check + .5 * v_check)) - .5 * np.dot(
                     (mu_check - u), np.dot(invKern, (mu_check - u))) - np.dot(.5 * np.diag(invKern),
-                                                                              v_check) + .5 * np.sum(
-                    np.log(v_check + eps))
+                    v_check) + .5 * np.sum(np.log(v_check + eps))
                 if fnew > fold:
                     fold = fnew
                 else:
@@ -434,20 +459,3 @@ class diln:
         self.write_corr_topics(corpus, folder + '/final_corr_topics.csv')
         cPickle.dump(self, open(folder + '/model.pkl', 'w'))
 
-
-class corpus:
-    def __init__(self, vocab, word_ids, word_cnt, K):
-        self.vocab = np.array(vocab)
-        self.word_ids = word_ids
-        self.word_cnt = word_cnt
-        self.K = K  # num topics
-        self.N = len(vocab)
-        self.M = len(word_ids)
-        self.A = np.random.gamma(shape=1, scale=1, size=[self.M, self.K])
-        self.B = np.random.gamma(shape=1, scale=1, size=[self.M, self.K])
-        self.mu = np.zeros([self.M, self.K])
-        self.sigma = np.ones([self.M, self.K])
-
-        self.Nm = np.zeros(self.M)
-        for i in xrange(self.M):
-            self.Nm[i] = np.sum(word_cnt[i])

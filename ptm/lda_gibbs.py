@@ -37,13 +37,13 @@ class GibbsLDA(BaseGibbsParamTopicModel):
         """
         for di in range(len(docs)):
             doc = docs[di]
-            topics = np.random.randint(self.K, size=len(doc))
+            topics = np.random.randint(self.n_topic, size=len(doc))
             self.topic_assignment.append(topics)
 
             for wi in range(len(doc)):
                 topic = topics[wi]
                 word = doc[wi]
-                self.WT[word, topic] += 1
+                self.TW[topic, word] += 1
                 self.sum_T[topic] += 1
                 self.DT[di, topic] += 1
 
@@ -68,17 +68,17 @@ class GibbsLDA(BaseGibbsParamTopicModel):
                     word = doc[wi]
                     old_topic = self.topic_assignment[di][wi]
 
-                    self.WT[word, old_topic] -= 1
+                    self.TW[old_topic, word] -= 1
                     self.sum_T[old_topic] -= 1
                     self.DT[di, old_topic] -= 1
 
                     # compute conditional probability of a topic of current word wi
-                    prob = (self.WT[word, :]) / (self.sum_T[:]) * (self.DT[di, :])
+                    prob = (self.TW[:, word]) / (self.sum_T[:]) * (self.DT[di, :])
 
                     new_topic = sampling_from_dist(prob)
 
                     self.topic_assignment[di][wi] = new_topic
-                    self.WT[word, new_topic] += 1
+                    self.TW[new_topic, word] += 1
                     self.sum_T[new_topic] += 1
                     self.DT[di, new_topic] += 1
 
@@ -90,15 +90,15 @@ class GibbsLDA(BaseGibbsParamTopicModel):
         """
         ll = 0
 
-        ll += len(docs) * gammaln(self.alpha * self.K)
-        ll -= len(docs) * self.K * gammaln(self.alpha)
-        ll += self.K * gammaln(self.beta * self.W)
-        ll -= self.K * self.W * gammaln(self.beta)
+        ll += len(docs) * gammaln(self.alpha * self.n_topic)
+        ll -= len(docs) * self.n_topic * gammaln(self.alpha)
+        ll += self.n_topic * gammaln(self.beta * self.W)
+        ll -= self.n_topic * self.W * gammaln(self.beta)
 
         for di in xrange(len(docs)):
             ll += gammaln(self.DT[di, :]).sum() - gammaln(self.DT[di, :].sum())
-        for ki in xrange(self.K):
-            ll += gammaln(self.WT[:, ki]).sum() - gammaln(self.WT[:, ki].sum())
+        for ki in xrange(self.n_topic):
+            ll += gammaln(self.TW[ki, :]).sum() - gammaln(self.TW[ki, :].sum())
 
         return ll
 

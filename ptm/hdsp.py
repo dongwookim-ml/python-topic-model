@@ -5,7 +5,7 @@ from scipy.special import gammaln, psi
 eps = 1e-100
 
 
-class hdsp:
+class HDSP:
     """
     hierarchical dirichlet scaling process (hdsp)
     Dongwoo Kim, Alice Oh, 2014

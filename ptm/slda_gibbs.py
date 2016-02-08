@@ -42,11 +42,9 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
             for wi in xrange(len(doc)):
                 topic = topics[wi]
                 word = doc[wi]
-                self.WT[word, topic] += 1
+                self.TW[word, topic] += 1
                 self.sum_T[topic] += 1
                 self.DT[di, topic] += 1
-
-        print('done')
 
     def fit(self, docs, responses, max_iter=100):
         """ Stochastic Expectation Maximisation algorithm
@@ -60,7 +58,7 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
                     word = doc[wi]
                     old_topic = self.topic_assignment[di][wi]
 
-                    self.WT[word, old_topic] -= 1
+                    self.TW[old_topic, word] -= 1
                     self.sum_T[old_topic] -= 1
                     self.DT[di, old_topic] -= 1
 
@@ -69,13 +67,13 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
                     z_bar /= self.DT[di, :].sum() + 1
 
                     # update
-                    prob = (self.WT[word, :]) / (self.sum_T[:]) * (self.DT[di, :]) * np.exp(
+                    prob = (self.TW[:, word]) / (self.sum_T) * (self.DT[di, :]) * np.exp(
                         np.negative((responses[di] - np.dot(z_bar, self.eta)) ** 2) / 2 / self.sigma)
 
                     new_topic = sampling_from_dist(prob)
 
                     self.topic_assignment[di][wi] = new_topic
-                    self.WT[word, new_topic] += 1
+                    self.TW[new_topic, word] += 1
                     self.sum_T[new_topic] += 1
                     self.DT[di, new_topic] += 1
 
@@ -111,7 +109,7 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
                     h_doc_topic_sum[di, old_topic] -= 1
 
                     # update
-                    prob = (self.WT[word, :]) / (self.sum_T[:]) * (self.DT[di, :])
+                    prob = (self.TW[:, word] / self.sum_T) * (self.DT[di, :])
 
                     new_topic = sampling_from_dist(prob)
 
@@ -132,9 +130,9 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
         ll += self.n_topic * gammaln(self.beta * self.n_voca)
         ll -= self.n_topic * self.n_voca * gammaln(self.beta)
 
-        for di in xrange(len(docs)):
+        for di in xrange(self.n_doc):
             ll += gammaln(self.DT[di, :]).sum() - gammaln(self.DT[di, :].sum())
         for ki in xrange(self.n_topic):
-            ll += gammaln(self.WT[:, ki]).sum() - gammaln(self.WT[:, ki].sum())
+            ll += gammaln(self.TW[ki, :]).sum() - gammaln(self.TW[ki, :].sum())
 
         return ll

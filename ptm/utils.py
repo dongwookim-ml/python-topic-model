@@ -37,17 +37,15 @@ def sampling_from_dict(prob):
     key: int
         sampled key
     """
-    sum = 0
-    for key, p in prob.items():
-        sum += p
+    prob_sum = sum(prob.values())
 
-    thr = sum * np.random.rand()
+    thr = prob_sum * np.random.rand()
     tmp = 0
     for key, p in prob.items():
         tmp += p
         if tmp < thr:
             new_topic = key
-    return key
+    return new_topic
 
 
 def isfloat(value):
@@ -92,13 +90,13 @@ def log_normalize(log_prob_vector):
     return log_prob_vector
 
 
-def convert_wrdcnt_wrdlist(corpus_ids, corpus_cnt):
+def convert_cnt_to_list(word_ids, word_cnt):
     corpus = list()
 
-    for di in xrange(len(corpus_ids)):
+    for di in xrange(len(word_ids)):
         doc = list()
-        doc_ids = corpus_ids[di]
-        doc_cnt = corpus_cnt[di]
+        doc_ids = word_ids[di]
+        doc_cnt = word_cnt[di]
         for wi in xrange(len(doc_ids)):
             word_id = doc_ids[wi]
             for si in xrange(doc_cnt[wi]):

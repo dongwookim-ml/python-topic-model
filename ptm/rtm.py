@@ -1,7 +1,7 @@
 import numpy as np
-import utils
+from .utils import write_top_words
 from scipy.special import gammaln, psi
-from formatted_logger import formatted_logger
+from .formatted_logger import formatted_logger
 
 eps = 1e-20
 
@@ -135,7 +135,7 @@ class RelationalTopicModel:
             f.write('%f\n' % self.nu)
 
         if vocab != None:
-            utils.write_top_words(self.beta, vocab, output_directory + '/top_words.csv')
+            write_top_words(self.beta, vocab, output_directory + '/top_words.csv')
 
 
 def main():

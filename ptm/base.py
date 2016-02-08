@@ -21,7 +21,7 @@ class BaseGibbsParamTopicModel(BaseTopicModel):
     ----------
     n_topic: int
         a number of topics to be inferred through the Gibbs sampling
-    WT: ndarray, shape (n_voca, n_topic)
+    TW: ndarray, shape (n_voca, n_topic)
         word-topic matrix, keeps the number of assigned word tokens for each word-topic pair
     DT: ndarray, shape (n_doc, n_topic)
         document-topic matrix, keeps the number of assigned word tokens for each document-topic pair
@@ -36,7 +36,7 @@ class BaseGibbsParamTopicModel(BaseTopicModel):
     def __init__(self, n_doc, n_voca, n_topic, alpha, beta):
         super(BaseGibbsParamTopicModel, self).__init__(n_doc=n_doc, n_voca=n_voca)
         self.n_topic = n_topic
-        self.WT = np.zeros([self.n_voca, self.n_topic])
+        self.TW = np.zeros([self.n_topic, self.n_voca])
         self.DT = np.zeros([self.n_doc, self.n_topic])
         self.sum_T = np.zeros(self.n_topic)
 
@@ -45,6 +45,6 @@ class BaseGibbsParamTopicModel(BaseTopicModel):
 
         self.topic_assignment = list()
 
-        self.WT += self.beta
+        self.TW += self.beta
         self.sum_T += self.beta * self.n_voca
         self.DT += self.alpha
