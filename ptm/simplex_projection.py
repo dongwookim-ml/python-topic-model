@@ -6,11 +6,10 @@ The (unit) L1-ball is the set X = { \mathbf{x} | || x ||_1 \leq 1 }
  
 Adrien Gaidon - INRIA - 2011
 """
- 
- 
+
 import numpy as np
- 
- 
+
+
 def euclidean_proj_simplex(v, s=1):
     """ Compute the Euclidean projection on a positive simplex
  
@@ -54,14 +53,14 @@ def euclidean_proj_simplex(v, s=1):
     u = np.sort(v)[::-1]
     cssv = np.cumsum(u)
     # get the number of > 0 components of the optimal solution
-    rho = np.nonzero(u * np.arange(1, n+1) > (cssv - s))[0][-1]
+    rho = np.nonzero(u * np.arange(1, n + 1) > (cssv - s))[0][-1]
     # compute the Lagrange multiplier associated to the simplex constraint
     theta = (cssv[rho] - s) / (rho + 1.0)
     # compute the projection by thresholding v using theta
     w = (v - theta).clip(min=0)
     return w
- 
- 
+
+
 def euclidean_proj_l1ball(v, s=1):
     """ Compute the Euclidean projection on a L1-ball
  

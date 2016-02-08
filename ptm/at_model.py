@@ -1,8 +1,8 @@
 import numpy as n
 import os
 
-class at_model:
 
+class AuthorTopicModel:
     def __init__(self, vocab, K, A, docList, authorList, alpha=0.1, eta=0.01):
         """
         Initialize at_model
@@ -42,7 +42,7 @@ class at_model:
         self.topic_sum = n.zeros(self._K)
         self.author_sum = n.zeros(self._A)
 
-        #initialization
+        # initialization
         for di in xrange(0, self._D):
             self.author_assigned.append(list())
             self.topic_assigned.append(list())
@@ -50,18 +50,18 @@ class at_model:
             authors = self._authorList[di]
             for wi in xrange(0, len(doc)):
                 w = doc[wi]
-                #random sampling topic
+                # random sampling topic
                 z = n.random.choice(self._K, 1)[0]
-                #random sampling author
-                a = n.random.choice(len(authors),1)[0]
+                # random sampling author
+                a = n.random.choice(len(authors), 1)[0]
 
-                #assigning sampled value (sufficient statistics)
-                self.c_wt[w,z] += 1
-                self.c_at[authors[a],z] += 1
+                # assigning sampled value (sufficient statistics)
+                self.c_wt[w, z] += 1
+                self.c_at[authors[a], z] += 1
                 self.topic_sum[z] += 1
                 self.author_sum[authors[a]] += 1
 
-                #keep sampled value for future sampling
+                # keep sampled value for future sampling
                 self.topic_assigned[di].append(z)
                 self.author_assigned[di].append(authors[a])
 
@@ -81,21 +81,22 @@ class at_model:
                     self.topic_sum[old_z] -= 1
                     self.author_sum[old_a] -= 1
 
-                    wt = (self.c_wt[w, :]+ self._eta)/(self.topic_sum+self._W*self._eta) 
-                    at = (self.c_at[authors,:] + self._alpha)/(self.author_sum[authors].repeat(self._K).reshape(len(authors),self._K)+self._K*self._alpha)
+                    wt = (self.c_wt[w, :] + self._eta) / (self.topic_sum + self._W * self._eta)
+                    at = (self.c_at[authors, :] + self._alpha) / (
+                    self.author_sum[authors].repeat(self._K).reshape(len(authors), self._K) + self._K * self._alpha)
 
-                    pdf = at*wt
-                    pdf = pdf.reshape(len(authors)*self._K)
-                    pdf = pdf/pdf.sum()
+                    pdf = at * wt
+                    pdf = pdf.reshape(len(authors) * self._K)
+                    pdf = pdf / pdf.sum()
 
-                    #sampling author and topic
+                    # sampling author and topic
                     idx = n.random.multinomial(1, pdf).argmax()
 
-                    new_ai = idx/self._K
-                    new_z = idx%self._K
+                    new_ai = idx / self._K
+                    new_z = idx % self._K
 
                     new_a = authors[new_ai]
-                    self.c_wt[w,new_z] += 1
+                    self.c_wt[w, new_z] += 1
                     self.c_at[new_a, new_z] += 1
                     self.topic_sum[new_z] += 1
                     self.author_sum[new_a] += 1
@@ -104,8 +105,8 @@ class at_model:
 
 
 if __name__ == '__main__':
-    #test case
-    atm = at_model([0,1,2,3,4], 2, 3, [[0,0,2,2,3],[1,3,3,4,4]], [[0,1],[1,2]])
+    # test case
+    atm = at_model([0, 1, 2, 3, 4], 2, 3, [[0, 0, 2, 2, 3], [1, 3, 3, 4, 4]], [[0, 1], [1, 2]])
     atm.sampling_topics(10)
 
     folder = 'at-result'

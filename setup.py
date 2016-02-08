@@ -57,7 +57,7 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords='topic model lda',
+    keywords=['topic model', 'latent dirichelt allocation', 'hierarchical dirichlet process', 'lda', 'hdp'],
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
@@ -68,7 +68,7 @@ setup(
     # project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/technical.html#install-requires-vs-requirements-files
-    install_requires=['numpy', 'scipy', ],
+    install_requires=['numpy', 'scipy', 'nltk', ],
 
     # List additional groups of dependencies here (e.g. development dependencies).
     # You can install these using the following syntax, for example:

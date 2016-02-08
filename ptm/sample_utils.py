@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def sampling_from_dist(prob):
     """
     highly optimized sampling method

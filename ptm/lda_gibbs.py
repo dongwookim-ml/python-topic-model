@@ -1,119 +1,111 @@
-import numpy as np
 import time
+
+import numpy as np
 from scipy.special import gammaln
 
-def sampling_from_dist(prob):
-    thr = prob.sum() * np.random.rand()
-    new_topic=0
-    tmp = prob[new_topic]
-    while tmp < thr:
-        new_topic += 1
-        tmp += prob[new_topic]
-    return new_topic
+from .base import BaseGibbsParamTopicModel
+from .formatted_logger import formatted_logger
+from .utils import sampling_from_dist
 
-class gibbsLDA:
+logger = formatted_logger('GibbsLDA')
+
+
+class GibbsLDA(BaseGibbsParamTopicModel):
     """
     Latent dirichlet allocation,
     Blei, David M and Ng, Andrew Y and Jordan, Michael I, 2003
     
     Latent Dirichlet allocation with collapsed Gibbs sampling
+
+    Attributes
+    ----------
+    topic_assignment:
+        list of topic assignment for each word token
+
     """
 
-    def __init__(self, numTopic, numWord, alpha=0.1, beta=0.01):
-        self.K = numTopic
-        self.W = numWord
-
-        #hyper-parameters
-        self.alpha = alpha
-        self.beta = beta
+    def __init__(self, n_doc, n_voca, n_topic, alpha=0.1, beta=0.01):
+        super(GibbsLDA, self).__init__(n_doc=n_doc, n_voca=n_voca, n_topic=n_topic, alpha=alpha, beta=beta)
 
     def random_init(self, docs):
         """
-        Random initialization of topics
+
+        Parameters
+        ----------
+        docs: list, size=n_doc
+
         """
-        print 'random init'
-        #summary statistics
-
-        self.WK = np.zeros([self.W,self.K]) + self.beta
-        self.sumK = np.zeros([self.K]) + self.beta * self.W
-        self.doc_topic_sum = np.zeros([len(docs), self.K]) + self.alpha
-
-        #topic assignments
-        self.doc_topics = list()
-
-        for di in xrange(len(docs)):
+        for di in range(len(docs)):
             doc = docs[di]
-            topics = np.random.randint(self.K, size = len(doc))
-            self.doc_topics.append(topics)
+            topics = np.random.randint(self.K, size=len(doc))
+            self.topic_assignment.append(topics)
 
-            for wi in xrange(len(doc)):
+            for wi in range(len(doc)):
                 topic = topics[wi]
                 word = doc[wi]
-                self.WK[word,topic] += 1
-                self.sumK[topic] +=1
-                self.doc_topic_sum[di, topic] += 1
+                self.WT[word, topic] += 1
+                self.sum_T[topic] += 1
+                self.DT[di, topic] += 1
 
-        print 'done'
+    def fit(self, docs, max_iter=100):
+        """ Gibbs sampling for LDA
 
-    def gibbs_sampling(self, max_iter, docs):
+        Parameters
+        ----------
+        docs
+        max_iter: int
+            maximum number of Gibbs sampling iteration
+
         """
-        Argument:
-        max_iter:
-        docs:
-        """
-        prev = time.clock()
+        self.random_init(docs)
 
-        #print 'start Gibbs sampling'
         for iteration in xrange(max_iter):
-
-            #print iteration, time.clock() - prev, self.loglikelihood(docs)
             prev = time.clock()
 
             for di in xrange(len(docs)):
                 doc = docs[di]
                 for wi in xrange(len(doc)):
                     word = doc[wi]
-                    old_topic = self.doc_topics[di][wi]
+                    old_topic = self.topic_assignment[di][wi]
 
-                    self.WK[word,old_topic] -= 1
-                    self.sumK[old_topic] -= 1
-                    self.doc_topic_sum[di,old_topic] -= 1
+                    self.WT[word, old_topic] -= 1
+                    self.sum_T[old_topic] -= 1
+                    self.DT[di, old_topic] -= 1
 
-                    #update
-                    prob = (self.WK[word, :])/(self.sumK[:]) * (self.doc_topic_sum[di,:])
+                    # compute conditional probability of a topic of current word wi
+                    prob = (self.WT[word, :]) / (self.sum_T[:]) * (self.DT[di, :])
 
                     new_topic = sampling_from_dist(prob)
 
-                    self.doc_topics[di][wi] = new_topic
-                    self.WK[word,new_topic] += 1
-                    self.sumK[new_topic] += 1
-                    self.doc_topic_sum[di,new_topic] += 1
+                    self.topic_assignment[di][wi] = new_topic
+                    self.WT[word, new_topic] += 1
+                    self.sum_T[new_topic] += 1
+                    self.DT[di, new_topic] += 1
 
-        #print 'sampling done'
+                    logger.info('[ITER] %d, %.2f, %.2f', iteration, time.clock() - prev, self.log_likelihood(docs))
 
-    def loglikelihood(self, docs):
+    def log_likelihood(self, docs):
         """
         likelihood function
         """
         ll = 0
 
-        ll += len(docs) * gammaln(self.alpha*self.K)
+        ll += len(docs) * gammaln(self.alpha * self.K)
         ll -= len(docs) * self.K * gammaln(self.alpha)
-        ll += self.K * gammaln(self.beta*self.W)
-        ll -= self.K * self.W * gammaln(self.beta) 
+        ll += self.K * gammaln(self.beta * self.W)
+        ll -= self.K * self.W * gammaln(self.beta)
 
         for di in xrange(len(docs)):
-            ll += gammaln(self.doc_topic_sum[di,:]).sum() - gammaln(self.doc_topic_sum[di,:].sum())
+            ll += gammaln(self.DT[di, :]).sum() - gammaln(self.DT[di, :].sum())
         for ki in xrange(self.K):
-            ll += gammaln(self.WK[:,ki]).sum() - gammaln(self.WK[:,ki].sum())
+            ll += gammaln(self.WT[:, ki]).sum() - gammaln(self.WT[:, ki].sum())
 
         return ll
 
 
 if __name__ == '__main__':
-    #test
-    docs = [[0,1,2,3,3,4,3,4,5], [2,3,3,5,6,7,8,3,8,9,5]]
-    
-    model = gibbsLDA(2, 10)
-    model.random_init(docs)
-    model.gibbs_sampling(100,docs)
+    # test
+    docs = [[0, 1, 2, 3, 3, 4, 3, 4, 5], [2, 3, 3, 5, 6, 7, 8, 3, 8, 9, 5]]
+
+    model = GibbsLDA(2, 10)
+    model.fit(docs)

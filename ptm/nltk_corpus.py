@@ -8,7 +8,7 @@ def get_reuters_cnt_ids(num_doc=100, max_voca=10000):
     reuters corpus should be installed in nltk_data: nltk.download()
     '''
     file_list = reuters.fileids()
-    
+
     docs = list()
     freq = Counter()
 
@@ -17,7 +17,7 @@ def get_reuters_cnt_ids(num_doc=100, max_voca=10000):
         freq.update(doc)
         docs.append(doc)
 
-    voca = [key for key,val in freq.most_common(max_voca)]
+    voca = [key for key, val in freq.most_common(max_voca)]
 
     voca_dic = dict()
     voca_list = list()
@@ -37,4 +37,3 @@ def get_reuters_cnt_ids(num_doc=100, max_voca=10000):
         doc_cnt.append(cnt)
 
     return np.array(voca_list), doc_ids, doc_cnt
-
