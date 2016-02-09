@@ -1,5 +1,7 @@
 import numpy as np
 
+from six.moves import xrange
+
 
 def sampling_from_dist(prob):
     """ Sample index from a list of unnormalised probability distribution
@@ -105,11 +107,16 @@ def convert_cnt_to_list(word_ids, word_cnt):
     return corpus
 
 
-def write_top_words(topic_word_matrix, vocab, filepath, num_top_words=20, delimiter=',', newline='\n'):
+def write_top_words(topic_word_matrix, vocab, filepath, n_words=20, delimiter=',', newline='\n'):
     with open(filepath, 'w') as f:
         for ti in xrange(topic_word_matrix.shape[0]):
-            top_words = vocab[topic_word_matrix[ti, :].argsort()[::-1][:num_top_words]]
+            top_words = vocab[topic_word_matrix[ti, :].argsort()[::-1][:n_words]]
             f.write('%d' % (ti))
             for word in top_words:
                 f.write(delimiter + word)
             f.write(newline)
+
+
+def get_top_words(topic_word_matrix, vocab, topic, n_words=20):
+    top_words = vocab[topic_word_matrix[topic].argsort()[::-1][:n_words]]
+    return top_words

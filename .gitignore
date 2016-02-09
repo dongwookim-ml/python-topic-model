@@ -57,3 +57,5 @@ result/
 
 # test folder
 test/
+logs/
+notebook/.ipynb_checkpoints

@@ -2,6 +2,7 @@ import time
 
 import numpy as np
 from scipy.special import gammaln
+from six.moves import xrange
 
 from .base import BaseGibbsParamTopicModel
 from .formatted_logger import formatted_logger
@@ -73,7 +74,7 @@ class GibbsLDA(BaseGibbsParamTopicModel):
                     self.DT[di, old_topic] -= 1
 
                     # compute conditional probability of a topic of current word wi
-                    prob = (self.TW[:, word]) / (self.sum_T[:]) * (self.DT[di, :])
+                    prob = (self.TW[:, word] / self.sum_T) * (self.DT[di, :])
 
                     new_topic = sampling_from_dist(prob)
 
@@ -82,7 +83,7 @@ class GibbsLDA(BaseGibbsParamTopicModel):
                     self.sum_T[new_topic] += 1
                     self.DT[di, new_topic] += 1
 
-                    logger.info('[ITER] %d, %.2f, %.2f', iteration, time.clock() - prev, self.log_likelihood(docs))
+            logger.info('[ITER] %d,\telapsed time:%.2f,\tlog_likelihood:%.2f', iteration, time.clock() - prev, self.log_likelihood(docs))
 
     def log_likelihood(self, docs):
         """
@@ -92,8 +93,8 @@ class GibbsLDA(BaseGibbsParamTopicModel):
 
         ll += len(docs) * gammaln(self.alpha * self.n_topic)
         ll -= len(docs) * self.n_topic * gammaln(self.alpha)
-        ll += self.n_topic * gammaln(self.beta * self.W)
-        ll -= self.n_topic * self.W * gammaln(self.beta)
+        ll += self.n_topic * gammaln(self.beta * self.n_voca)
+        ll -= self.n_topic * self.n_voca * gammaln(self.beta)
 
         for di in xrange(len(docs)):
             ll += gammaln(self.DT[di, :]).sum() - gammaln(self.DT[di, :].sum())
@@ -101,11 +102,3 @@ class GibbsLDA(BaseGibbsParamTopicModel):
             ll += gammaln(self.TW[ki, :]).sum() - gammaln(self.TW[ki, :].sum())
 
         return ll
-
-
-if __name__ == '__main__':
-    # test
-    docs = [[0, 1, 2, 3, 3, 4, 3, 4, 5], [2, 3, 3, 5, 6, 7, 8, 3, 8, 9, 5]]
-
-    model = GibbsLDA(2, 10)
-    model.fit(docs)
