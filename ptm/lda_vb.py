@@ -1,74 +1,77 @@
+import time
+
 import numpy as np
+from six.moves import xrange
 from scipy.special import gammaln, psi
 
-eps = 0.01
+from .formatted_logger import formatted_logger
 
+eps = 1e-3
+
+logger = formatted_logger('vbLDA')
 
 def dirichlet_expectation(alpha):
-    if (len(alpha.shape) == 1):
-        return (psi(alpha) - psi(np.sum(alpha)))
-    return (psi(alpha) - psi(np.sum(alpha, 1))[:, np.newaxis])
+    if len(alpha.shape) == 1:
+        return psi(alpha) - psi(np.sum(alpha))
+    return psi(alpha) - psi(np.sum(alpha, 1))[:, np.newaxis]
 
 
 class vbLDA:
     """
     Latent dirichlet allocation,
     Blei, David M and Ng, Andrew Y and Jordan, Michael I, 2003
-    
+
     Latent Dirichlet allocation with mean field variational inference
     """
 
-    def __init__(self, vocab, K, wordids, wordcts, alpha=0.1, eta=0.01):
-        """
-        Arguments: 
-        vocab: Dictionary mapping from words to integer ids.
-        K:
-        wordids:
-        wordcts:
-        alpha:
-        eta:
-        """
-        self.vocab = vocab
-        self.n_voca = len(vocab)
-        self.n_topic = K
-        self.n_doc = len(wordids)
+    def __init__(self, n_doc, n_voca, n_topic, alpha=0.1, beta=0.01, is_compute_bound=True):
+        self.n_voca = n_voca
+        self.n_topic = n_topic
+        self.n_doc = n_doc
         self.alpha = alpha
-        self.eta = eta
+        self.beta = beta
 
-        self._wordids = wordids
-        self._wordcts = wordcts
         self._lambda = 1 * np.random.gamma(100., 1. / 100, (self.n_topic, self.n_voca))
         self._Elogbeta = dirichlet_expectation(self._lambda)
         self._expElogbeta = np.exp(self._Elogbeta)
         self.gamma_iter = 5
         self.gamma = 1 * np.random.gamma(100., 1. / 100, (self.n_doc, self.n_topic))
 
-    def do_e_step(self):
+        self.is_compute_bound = is_compute_bound
+
+    def fit(self, doc_ids, doc_cnt, max_iter=100):
+
+        for iter in xrange(max_iter):
+            tic = time.time()
+            _, bound = self.do_m_step(doc_ids, doc_cnt)
+
+            logger.info('[ITER] %d,\telapsed time:%.2f,\tELBO:%.2f', iter, time.time() - tic, bound)
+
+    def do_e_step(self, doc_ids, doc_cnt):
         """
         compute approximate topic distribution of each document and each word
         """
-        # self.gamma = 1*np.random.gamma(100.,1./100, (self._D, self._K))
-        # random initialize gamma
         Elogtheta = dirichlet_expectation(self.gamma)
         expElogtheta = np.exp(Elogtheta)
 
-        # sufficient statistics to update lambda
         sstats = np.zeros(self._lambda.shape)
 
         for d in range(0, self.n_doc):
-            ids = self._wordids[d]
-            cts = np.array(self._wordcts[d])
+            ids = doc_ids[d]
+            cnt = np.array(doc_cnt[d])
+            if np.sum(cnt) == 0:
+                continue
+
             gammad = self.gamma[d, :]
 
-            Elogthetad = Elogtheta[d, :]
             expElogthetad = expElogtheta[d, :]
             expElogbetad = self._expElogbeta[:, ids]
             phinorm = np.dot(expElogthetad, expElogbetad) + 1e-100
 
-            for it in xrange(self.gamma_iter):
+            for iter in xrange(self.gamma_iter):
                 lastgamma = gammad
 
-                gammad = self.alpha + expElogthetad * np.dot(cts / phinorm, expElogbetad.T)
+                gammad = self.alpha + expElogthetad * np.dot(cnt / phinorm, expElogbetad.T)
 
                 Elogthetad = dirichlet_expectation(gammad)
                 expElogthetad = np.exp(Elogthetad)
@@ -80,33 +83,29 @@ class vbLDA:
                     break
 
             self.gamma[d, :] = gammad
-            sstats[:, ids] += np.outer(expElogthetad.T, cts / phinorm)
+            sstats[:, ids] += np.outer(expElogthetad.T, cnt / phinorm)
 
-        # This step finishes computing the sufficient statistics for the
-        # M step, so that
-        # sstats[k, w] = \sum_d n_{dw} * phi_{dwk} 
-        # = \sum_d n_{dw} * exp{Elogtheta_{dk} + Elogbeta_{kw}} / phinorm_{dw}.
         sstats = sstats * self._expElogbeta
 
         return (self.gamma, sstats)
 
-    def do_m_step(self, isComputeBound=True):
+    def do_m_step(self, doc_ids, doc_cnt):
         """
         estimate topic distribution based on computed approx. topic distribution
         """
-        (gamma, sstats) = self.do_e_step()
+        (gamma, sstats) = self.do_e_step(doc_ids, doc_cnt)
 
-        self._lambda = self.eta + sstats
+        self._lambda = self.beta + sstats
         self._Elogbeta = dirichlet_expectation(self._lambda)
         self._expElogbeta = np.exp(self._Elogbeta)
 
         bound = 0
-        if isComputeBound:
-            bound = self.approx_bound(gamma)
+        if self.is_compute_bound:
+            bound = self.approx_bound(doc_ids, doc_cnt, gamma)
 
-        return (gamma, bound)
+        return gamma, bound
 
-    def approx_bound(self, gamma):
+    def approx_bound(self, doc_ids, doc_cnt, gamma):
         """
         Compute lower bound of the corpus
         """
@@ -116,8 +115,8 @@ class vbLDA:
 
         # E[log p(docs | theta, beta)]
         for d in range(0, self.n_doc):
-            ids = self._wordids[d]
-            cts = np.array(self._wordcts[d])
+            ids = doc_ids[d]
+            cts = np.array(doc_cnt[d])
             phinorm = np.zeros(len(ids))
             for i in range(0, len(ids)):
                 temp = Elogtheta[d, :] + self._Elogbeta[:, ids[i]]
@@ -131,23 +130,8 @@ class vbLDA:
         score += sum(gammaln(self.alpha * self.n_topic) - gammaln(np.sum(gamma, 1)))
 
         # E[log p(beta | eta) - log q (beta | lambda)]
-        score = score + np.sum((self.eta - self._lambda) * self._Elogbeta)
-        score = score + np.sum(gammaln(self._lambda) - gammaln(self.eta))
-        score = score + np.sum(gammaln(self.eta * self.n_voca) - gammaln(np.sum(self._lambda, 1)))
+        score = score + np.sum((self.beta - self._lambda) * self._Elogbeta)
+        score = score + np.sum(gammaln(self._lambda) - gammaln(self.beta))
+        score = score + np.sum(gammaln(self.beta * self.n_voca) - gammaln(np.sum(self._lambda, 1)))
 
-        return (score)
-
-
-if __name__ == '__main__':
-    # test
-    import nltk_corpus
-
-    voca, wordids, wordcnt = nltk_corpus.get_reuters_cnt_ids(num_doc=100, max_voca=1000)
-
-    max_iter = 50
-    num_topic = 5
-
-    model = vbLDA(voca, num_topic, wordids, wordcnt)
-    for i in xrange(max_iter):
-        (gamma, bound) = model.do_m_step()
-        print(i, bound)
+        return score

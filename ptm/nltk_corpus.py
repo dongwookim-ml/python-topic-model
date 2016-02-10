@@ -36,7 +36,7 @@ def get_reuters_cnt_ids(num_doc=100, max_voca=10000, remove_top_n=5):
     for i in range(num_doc):
         doc = reuters.words(file_list[i])
         # remove word using stopword list or single character word
-        doc = [word.lower() for word in doc if word.lower() in voca and word.lower() not in stop or len(word) != 1]
+        doc = [word.lower() for word in doc if word.lower() in voca and word.lower() not in stop and len(word) != 1]
         freq.update(doc)
         docs.append(doc)
 
