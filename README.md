@@ -7,7 +7,7 @@ Current implementations
 -----------------------
 
 * Latent Dirichlet allocation
-  * Collapsed Gibbs sampling
+  * [Collapsed Gibbs sampling](http://nbviewer.jupyter.org/github/arongdari/python-topic-model/blob/master/notebook/GibbsLDA_example.ipynb)
   * Variational inference
 * Correlated topic Model
   * Variational inference
