@@ -18,8 +18,8 @@ Current implementations
 * Discrete infinite logistic normal (DILN)
   * Variational inference
 * Supervised topic model
+  * [Stochastic (Gibbs) EM](http://nbviewer.jupyter.org/github/arongdari/python-topic-model/blob/master/notebook/SupervisedTopicModel_example.ipynb)
   * Variational inference
-  * Stochastic (Gibbs) EM
 * Hierarchical Dirichlet process
   * Collapsed Gibbs sampling
 * Hierarchical Dirichlet scaling process

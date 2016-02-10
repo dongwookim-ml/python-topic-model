@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.special import gammaln
+from scipy.stats import norm
 from numpy.linalg import solve
+from six.moves import xrange
 
 from .base import BaseGibbsParamTopicModel
 from .utils import sampling_from_dist
@@ -42,7 +44,7 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
             for wi in xrange(len(doc)):
                 topic = topics[wi]
                 word = doc[wi]
-                self.TW[word, topic] += 1
+                self.TW[topic, word] += 1
                 self.sum_T[topic] += 1
                 self.DT[di, topic] += 1
 
@@ -82,8 +84,9 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
             self.eta = solve(np.dot(z_bar.T, z_bar), np.dot(z_bar.T, responses))
 
             # compute mean absolute error
-            mae = np.abs(responses - np.dot(z_bar, self.eta)).sum()
-            logger.info('[ITER] %d, %.2f, %.2f', iteration, mae, self.log_likelihood(docs, responses))
+            mae = np.mean(np.abs(responses - np.dot(z_bar, self.eta)))
+            logger.info('[ITER] %d,\tMAE:%.2f,\tlog_likelihood:%.2f', iteration, mae,
+                        self.log_likelihood(docs, responses))
 
     def sample_heldout_doc(self, max_iter, heldout_docs):
         h_doc_topics = list()
@@ -99,7 +102,7 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
                 topic = topics[wi]
                 h_doc_topic_sum[di, topic] += 1
 
-        for iteration in xrange(max_iter):
+        for iter in xrange(max_iter):
             for di in xrange(len(heldout_docs)):
                 doc = heldout_docs[di]
                 for wi in xrange(len(doc)):
@@ -132,6 +135,9 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
 
         for di in xrange(self.n_doc):
             ll += gammaln(self.DT[di, :]).sum() - gammaln(self.DT[di, :].sum())
+            z_bar = self.DT[di]/np.sum(self.DT[di])
+            mean = np.dot(z_bar, self.eta)
+            ll += norm.logpdf(responses[di], mean, np.sqrt(self.sigma))
         for ki in xrange(self.n_topic):
             ll += gammaln(self.TW[ki, :]).sum() - gammaln(self.TW[ki, :].sum())
 

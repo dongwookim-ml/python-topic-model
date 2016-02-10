@@ -83,7 +83,7 @@ class GibbsLDA(BaseGibbsParamTopicModel):
                     self.sum_T[new_topic] += 1
                     self.DT[di, new_topic] += 1
 
-            logger.info('[ITER] %d,\telapsed time:%.2f,\tlog_%.2f', iteration, time.clock() - prev, self.log_likelihood(docs))
+            logger.info('[ITER] %d,\telapsed time:%.2f,\tlog_likelihood:%.2f', iteration, time.clock() - prev, self.log_likelihood(docs))
 
     def log_likelihood(self, docs):
         """
