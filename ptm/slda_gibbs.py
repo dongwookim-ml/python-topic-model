@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import numpy as np
 from scipy.special import gammaln
 from scipy.stats import norm
@@ -22,8 +24,9 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
         variance parameter of Gaussian output variables
     """
 
-    def __init__(self, n_doc, n_voca, n_topic, alpha=0.1, beta=0.01, sigma=1.):
-        super(GibbsSupervisedLDA, self).__init__(n_doc=n_doc, n_voca=n_voca, n_topic=n_topic, alpha=alpha, beta=beta)
+    def __init__(self, n_doc, n_voca, n_topic, alpha=0.1, beta=0.01, sigma=1., **kwargs):
+        super(GibbsSupervisedLDA, self).__init__(n_doc=n_doc, n_voca=n_voca, n_topic=n_topic, alpha=alpha, beta=beta,
+                                                 **kwargs)
         self.eta = np.random.normal(scale=5, size=self.n_topic)
         self.sigma = sigma
 
@@ -85,8 +88,9 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
 
             # compute mean absolute error
             mae = np.mean(np.abs(responses - np.dot(z_bar, self.eta)))
-            logger.info('[ITER] %d,\tMAE:%.2f,\tlog_likelihood:%.2f', iteration, mae,
-                        self.log_likelihood(docs, responses))
+            if self.verbose:
+                logger.info('[ITER] %d,\tMAE:%.2f,\tlog_likelihood:%.2f', iteration, mae,
+                            self.log_likelihood(docs, responses))
 
     def sample_heldout_doc(self, max_iter, heldout_docs):
         h_doc_topics = list()
@@ -124,7 +128,6 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
     def log_likelihood(self, docs, responses):
         """
         likelihood function
-        does not contain normal distribution part
         """
         ll = 0
 
@@ -135,7 +138,7 @@ class GibbsSupervisedLDA(BaseGibbsParamTopicModel):
 
         for di in xrange(self.n_doc):
             ll += gammaln(self.DT[di, :]).sum() - gammaln(self.DT[di, :].sum())
-            z_bar = self.DT[di]/np.sum(self.DT[di])
+            z_bar = self.DT[di] / np.sum(self.DT[di])
             mean = np.dot(z_bar, self.eta)
             ll += norm.logpdf(responses[di], mean, np.sqrt(self.sigma))
         for ki in xrange(self.n_topic):

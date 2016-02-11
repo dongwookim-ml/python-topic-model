@@ -45,7 +45,8 @@ class vbLDA:
             tic = time.time()
             _, bound = self.do_m_step(doc_ids, doc_cnt)
 
-            logger.info('[ITER] %d,\telapsed time:%.2f,\tELBO:%.2f', iter, time.time() - tic, bound)
+            if self.verbose:
+                logger.info('[ITER] %d,\telapsed time:%.2f,\tELBO:%.2f', iter, time.time() - tic, bound)
 
     def do_e_step(self, doc_ids, doc_cnt):
         """

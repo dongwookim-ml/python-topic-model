@@ -8,10 +8,13 @@ class BaseTopicModel():
         the number of total documents in the corpus
     n_voca: int
         the vocabulary size of the corpus
+    verbose: boolean
+        if True, print each iteration step while inference.
     """
-    def __init__(self, n_doc, n_voca):
+    def __init__(self, n_doc, n_voca, **kwargs):
         self.n_doc = n_doc
         self.n_voca = n_voca
+        self.verbose = kwargs.pop('verbose', True)
 
 
 class BaseGibbsParamTopicModel(BaseTopicModel):
@@ -33,8 +36,8 @@ class BaseGibbsParamTopicModel(BaseTopicModel):
         symmetric parameter of Dirichlet prior for topic-word distribution
     """
 
-    def __init__(self, n_doc, n_voca, n_topic, alpha, beta):
-        super(BaseGibbsParamTopicModel, self).__init__(n_doc=n_doc, n_voca=n_voca)
+    def __init__(self, n_doc, n_voca, n_topic, alpha, beta, **kwargs):
+        super(BaseGibbsParamTopicModel, self).__init__(n_doc=n_doc, n_voca=n_voca, **kwargs)
         self.n_topic = n_topic
         self.TW = np.zeros([self.n_topic, self.n_voca])
         self.DT = np.zeros([self.n_doc, self.n_topic])

@@ -1,11 +1,15 @@
+from __future__ import print_function
+
 import numpy as np
-from .utils import write_top_words
 from scipy.special import gammaln, psi
+from six.moves import xrange
+
+from .utils import write_top_words
 from .formatted_logger import formatted_logger
 
 eps = 1e-20
 
-log = formatted_logger('RTM', 'info')
+logger = formatted_logger('RTM', 'info')
 
 
 class RelationalTopicModel:
@@ -40,13 +44,13 @@ class RelationalTopicModel:
         self.doc_links = doc_links
         self.rho = rho  # regularization parameter
 
-        log.info('Initialize RTM: num_voca:%d, num_topic:%d, num_doc:%d' % (self.n_voca, self.n_topic, self.n_doc))
+        logger.info('Initialize RTM: num_voca:%d, num_topic:%d, num_doc:%d' % (self.n_voca, self.n_topic, self.n_doc))
 
     def posterior_inference(self, max_iter):
         for iter in xrange(max_iter):
             self.variation_update()
             self.parameter_estimation()
-            log.info('%d iter: ELBO = %.3f' % (iter, self.compute_elbo()))
+            logger.info('%d iter: ELBO = %.3f' % (iter, self.compute_elbo()))
 
     def compute_elbo(self):
         """ compute evidence lower bound for trained model
@@ -134,7 +138,7 @@ class RelationalTopicModel:
         with open(output_directory + '/nu.txt', 'w') as f:
             f.write('%f\n' % self.nu)
 
-        if vocab != None:
+        if vocab is not None:
             write_top_words(self.beta, vocab, output_directory + '/top_words.csv')
 
 

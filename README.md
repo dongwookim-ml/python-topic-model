@@ -14,7 +14,7 @@ Current implementations
 * Relational topic model (VI)
   * Exponential link function
 * Author-Topic model 
-* HMM-LDA
+* [HMM-LDA](http://nbviewer.jupyter.org/github/arongdari/python-topic-model/blob/master/notebook/HMM_LDA_example.ipynb)
 * Discrete infinite logistic normal (DILN)
   * Variational inference
 * Supervised topic model
