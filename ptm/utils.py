@@ -118,5 +118,7 @@ def write_top_words(topic_word_matrix, vocab, filepath, n_words=20, delimiter=',
 
 
 def get_top_words(topic_word_matrix, vocab, topic, n_words=20):
+    if not isinstance(vocab, np.ndarray):
+        vocab = np.array(vocab)
     top_words = vocab[topic_word_matrix[topic].argsort()[::-1][:n_words]]
     return top_words
