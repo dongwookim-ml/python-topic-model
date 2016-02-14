@@ -13,7 +13,7 @@ Current implementations
   * Variational inference
 * Relational topic model (VI)
   * Exponential link function
-* Author-Topic model 
+* [Author-Topic model](http://nbviewer.jupyter.org/github/arongdari/python-topic-model/blob/master/notebook/AuthorTopicModel_example.ipynb)
 * [HMM-LDA](http://nbviewer.jupyter.org/github/arongdari/python-topic-model/blob/master/notebook/HMM_LDA_example.ipynb)
 * Discrete infinite logistic normal (DILN)
   * Variational inference
