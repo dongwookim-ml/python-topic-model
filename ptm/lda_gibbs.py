@@ -91,9 +91,7 @@ class GibbsLDA(BaseGibbsParamTopicModel):
         """
         likelihood function
         """
-        ll = 0
-
-        ll += len(docs) * gammaln(self.alpha * self.n_topic)
+        ll = len(docs) * gammaln(self.alpha * self.n_topic)
         ll -= len(docs) * self.n_topic * gammaln(self.alpha)
         ll += self.n_topic * gammaln(self.beta * self.n_voca)
         ll -= self.n_topic * self.n_voca * gammaln(self.beta)
