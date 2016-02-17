@@ -1,4 +1,5 @@
 from __future__ import print_function
+import time
 
 import numpy as np
 from scipy.special import gammaln, psi
@@ -9,20 +10,27 @@ from .formatted_logger import formatted_logger
 
 eps = 1e-20
 
-logger = formatted_logger('RTM', 'info')
+logger = formatted_logger('RelationalTopicModel', 'info')
 
 
 class RelationalTopicModel:
     """ implementation of relational topic model by Chang and Blei (2009)
     I implemented the exponential link probability function in here
+
+    Attributes
+    ----------
+    eta: ndarray, shape (n_topic)
+        coefficient of exponential function
+    rho: int
+        pseudo number of negative example
     """
 
-    def __init__(self, n_topic, n_doc, n_voca, doc_ids, doc_cnt, doc_links, rho):
+    def __init__(self, n_topic, n_doc, n_voca, alpha=0.1, rho=1000, **kwargs):
         self.n_doc = n_doc
         self.n_topic = n_topic
         self.n_voca = n_voca
 
-        self.alpha = .1
+        self.alpha = alpha
 
         self.gamma = np.random.gamma(100., 1. / 100, [self.n_doc, self.n_topic])
         self.beta = np.random.dirichlet([5] * self.n_voca, self.n_topic)
@@ -33,26 +41,28 @@ class RelationalTopicModel:
         self.phi = list()
         self.pi = np.zeros([self.n_doc, self.n_topic])
 
+        self.rho = rho
+
+        self.verbose = kwargs.pop('verbose', True)
+
+        logger.info('Initialize RTM: num_voca:%d, num_topic:%d, num_doc:%d' % (self.n_voca, self.n_topic, self.n_doc))
+
+    def fit(self, doc_ids, doc_cnt, doc_links, max_iter=100):
         for di in xrange(self.n_doc):
             unique_word = len(doc_ids[di])
             cnt = doc_cnt[di]
             self.phi.append(np.random.dirichlet([10] * self.n_topic, unique_word).T)  # list of KxW
             self.pi[di, :] = np.sum(cnt * self.phi[di], 1) / np.sum(cnt * self.phi[di])
 
-        self.doc_ids = doc_ids
-        self.doc_cnt = doc_cnt
-        self.doc_links = doc_links
-        self.rho = rho  # regularization parameter
-
-        logger.info('Initialize RTM: num_voca:%d, num_topic:%d, num_doc:%d' % (self.n_voca, self.n_topic, self.n_doc))
-
-    def posterior_inference(self, max_iter):
         for iter in xrange(max_iter):
-            self.variation_update()
-            self.parameter_estimation()
-            logger.info('%d iter: ELBO = %.3f' % (iter, self.compute_elbo()))
+            tic = time.time()
+            self.variation_update(doc_ids, doc_cnt, doc_links)
+            self.parameter_estimation(doc_links)
+            if self.verbose:
+                elbo = self.compute_elbo(doc_ids, doc_cnt, doc_links)
+                logger.info('[ITER] %3d,\tElapsed time: %.3f\tELBO: %.3f', iter, time.time()-tic, elbo)
 
-    def compute_elbo(self):
+    def compute_elbo(self, doc_ids, doc_cnt, doc_links):
         """ compute evidence lower bound for trained model
         """
         elbo = 0
@@ -61,8 +71,8 @@ class RelationalTopicModel:
         log_beta = np.log(self.beta + eps)
 
         for di in xrange(self.n_doc):
-            words = self.doc_ids[di]
-            cnt = self.doc_cnt[di]
+            words = doc_ids[di]
+            cnt = doc_cnt[di]
 
             elbo += np.sum(cnt * (self.phi[di] * log_beta[:, words]))  # E_q[log p(w_{d,n}|\beta,z_{d,n})]
             elbo += np.sum((self.alpha - 1.) * e_log_theta[di, :])  # E_q[log p(\theta_d | alpha)]
@@ -72,28 +82,28 @@ class RelationalTopicModel:
                     - np.sum((self.gamma[di, :] - 1.) * (e_log_theta[di, :]))  # - E_q[log q(theta|gamma)]
             elbo += - np.sum(cnt * self.phi[di] * np.log(self.phi[di]))  # - E_q[log q(z|phi)]
 
-            for adi in self.doc_links[di]:
+            for adi in doc_links[di]:
                 elbo += np.dot(self.eta,
                                self.pi[di] * self.pi[adi]) + self.nu  # E_q[log p(y_{d1,d2}|z_{d1},z_{d2},\eta,\nu)]
 
         return elbo
 
-    def variation_update(self):
+    def variation_update(self, doc_ids, doc_cnt, doc_links):
         # update phi, gamma
         e_log_theta = psi(self.gamma) - psi(np.sum(self.gamma, 1))[:, np.newaxis]
 
         new_beta = np.zeros([self.n_topic, self.n_voca])
 
         for di in xrange(self.n_doc):
-            words = self.doc_ids[di]
-            cnt = self.doc_cnt[di]
+            words = doc_ids[di]
+            cnt = doc_cnt[di]
             doc_len = np.sum(cnt)
 
             new_phi = np.log(self.beta[:, words] + eps) + e_log_theta[di, :][:, np.newaxis]
 
             gradient = np.zeros(self.n_topic)
-            for adi in self.doc_links[di]:
-                gradient += self.eta * self.pi[adi, :] / doc_len
+            for ai in doc_links[di]:
+                gradient += self.eta * self.pi[ai, :] / doc_len
 
             new_phi += gradient[:, np.newaxis]
             new_phi = np.exp(new_phi)
@@ -107,14 +117,14 @@ class RelationalTopicModel:
 
         self.beta = new_beta / np.sum(new_beta, 1)[:, np.newaxis]
 
-    def parameter_estimation(self):
+    def parameter_estimation(self, doc_links):
         # update eta, nu
         pi_sum = np.zeros(self.n_topic)
 
         num_links = 0.
 
         for di in xrange(self.n_doc):
-            for adi in self.doc_links[di]:
+            for adi in doc_links[di]:
                 pi_sum += self.pi[di, :] * self.pi[adi, :]
                 num_links += 1
 
@@ -141,18 +151,3 @@ class RelationalTopicModel:
         if vocab is not None:
             write_top_words(self.beta, vocab, output_directory + '/top_words.csv')
 
-
-def main():
-    rho = 1
-    num_topic = 2
-    num_voca = 6
-    num_doc = 2
-    doc_ids = [[0, 1, 4], [2, 3, 5]]
-    doc_cnt = [[2, 2, 3], [1, 3, 1]]
-    doc_links = [[1], [0]]  # bidirectional link
-    model = RelationalTopicModel(num_topic, num_doc, num_voca, doc_ids, doc_cnt, doc_links, rho)
-    model.posterior_inference(10)
-
-
-if __name__ == '__main__':
-    main()
