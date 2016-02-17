@@ -1,21 +1,36 @@
+from __future__ import print_function
 import time
+
 import numpy as np
 import numpy.linalg
 import scipy.optimize
+from six.moves import xrange
+
 from .simplex_projection import euclidean_proj_simplex
+from .formatted_logger import formatted_logger
+
+logger = formatted_logger('CollaborativeTopicModel', 'info')
 
 e = 1e-100
 error_diff = 10
 
 
-class CorrelatedTopicModel():
+class CollaborativeTopicModel:
     """
-    Correlated topic models,
-    Blei, David and Lafferty, John,
-    2006
+    Wang, Chong, and David M. Blei. "Collaborative topic modeling for recommending scientific articles."
+    Proceedings of the 17th ACM SIGKDD international conference on Knowledge discovery and data mining. ACM, 2011.
+
+    Attributes
+    ----------
+    n_item: int
+        number of items
+    n_user: int
+        number of users
+    R: ndarray, shape (n_user, n_item)
+        user x item rating matrix
     """
 
-    def __init__(self, n_topic, n_voca, n_user, n_item, doc_item, doc_cnt, ratings=None):
+    def __init__(self, n_topic, n_voca, n_user, n_item, doc_ids, doc_cnt, ratings):
         self.lambda_u = 0.01
         self.lambda_v = 0.01
         self.alpha = 1
@@ -39,29 +54,30 @@ class CorrelatedTopicModel():
         self.beta = np.random.random([n_voca, n_topic])
         self.beta = self.beta / self.beta.sum(0)  # normalize
 
-        self.doc_item = doc_item
+        self.doc_ids = doc_ids
         self.doc_cnt = doc_cnt
 
         self.C = np.zeros([n_user, n_item]) + self.b
         self.R = np.zeros([n_user, n_item])  # user_size x item_size
 
-        if ratings:
-            for di in xrange(len(ratings)):
-                rate = ratings[di]
-                for user in rate:
-                    self.C[user, di] += self.a - self.b
-                    self.R[user, di] = 1
+        for di in xrange(len(ratings)):
+            rate = ratings[di]
+            for user in rate:
+                self.C[user, di] += self.a - self.b
+                self.R[user, di] = 1
 
         self.phi_sum = np.zeros([n_voca, n_topic]) + self.eta
 
-    def learning_fixed_theta(self, max_iter):
+    def fit(self, doc_ids, doc_cnt, rating_matrix, max_iter=100):
         old_err = 0
         for iteration in xrange(max_iter):
-            prev = time.clock()
-            self.update_u()
-            self.update_v()
+            tic = time.clock()
+            self.do_e_step()
+            self.do_m_step()
             err = self.sqr_error()
-            print('Iteration-', iteration, time.clock() - prev, err)
+            if self.verbose:
+                logger.info('[ITER] %3d,\tElapsed time:%.2f,\tReconstruction error:%.3f', iteration,
+                            time.clock() - tic, err)
             if abs(old_err - err) < error_diff:
                 break
 
@@ -86,7 +102,7 @@ class CorrelatedTopicModel():
             return 0.5 * lambda_v * np.dot((v - x).T, v - x) - np.sum(np.sum(phi * (np.log(x * beta) - np.log(phi))))
 
         for vi in xrange(self.n_item):
-            W = np.array(self.doc_item[vi])
+            W = np.array(self.doc_ids[vi])
             word_beta = self.beta[W, :]
             phi = self.theta[vi, :] * word_beta + e  # W x K
             phi = phi / phi.sum(1)[:, np.newaxis]
@@ -111,15 +127,3 @@ class CorrelatedTopicModel():
     def do_m_step(self):
         self.beta = self.phi_sum / self.phi_sum.sum(0)
         self.phi_sum = np.zeros([self.n_voca, self.n_topic]) + self.eta
-
-
-def main():
-    doc_word = [[0, 1, 2, 4, 5], [2, 3, 5, 6, 7, 8, 9]]
-    doc_cnt = [[1, 2, 3, 2, 1], [3, 4, 5, 1, 2, 3, 4]]
-    rate_user = [[0, 1, 2], [2, 3]]
-    model = CorrelatedTopicModel(3, 10, 4, 2, doc_word, doc_cnt, rate_user)
-    model.learning(10)
-
-
-if __name__ == '__main__':
-    main()
