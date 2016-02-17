@@ -9,7 +9,7 @@ Current implementations
 * Latent Dirichlet allocation
   * [Collapsed Gibbs sampling](http://nbviewer.jupyter.org/github/arongdari/python-topic-model/blob/master/notebook/LDA_example.ipynb)
   * [Variational inference](http://nbviewer.jupyter.org/github/arongdari/python-topic-model/blob/master/notebook/LDA_example.ipynb)
-* Correlated topic Model
+* Collaborative topic model
   * Variational inference
 * Relational topic model (VI)
   * [Exponential link function](http://nbviewer.jupyter.org/github/arongdari/python-topic-model/blob/master/notebook/RelationalTopicModel_example.ipynb)
