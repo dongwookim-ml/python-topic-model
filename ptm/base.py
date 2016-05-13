@@ -1,6 +1,6 @@
 import numpy as np
 
-class BaseTopicModel():
+class BaseTopicModel(object):
     """
     Attributes
     ----------
